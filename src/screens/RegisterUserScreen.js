@@ -6,8 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-
-const SYNC_URL = 'http://192.168.100.52:3000/api/biometric/sync-user';
+import { createUser } from '../services/dahua/deviceService';
 
 export default function RegisterUserScreen({ route, navigation }) {
   const { targetIp, targetPass } = route.params; 
@@ -49,29 +48,23 @@ export default function RegisterUserScreen({ route, navigation }) {
     Keyboard.dismiss();
 
     try {
-      const response = await fetch(SYNC_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: userId,
-          name: userName,
-          photo: photoBase64,
-          deviceIp: targetIp,
-          devicePass: targetPass
-        }),
-      });
+      const result = await createUser(
+        { id: userId, name: userName, photo: photoBase64 }, 
+        targetIp, 
+        targetPass
+      );
 
-      if (response.ok) {
-        Alert.alert("¡Registro Exitoso!", `Usuario ${userName} creado en el dispositivo ${targetIp}`);
+      if (result.success) {
+        Alert.alert("¡Éxito!", `Usuario ${userName} creado en el biométrico.`);
         setUserId('');
         setUserName('');
         setPhotoUri(null);
         setPhotoBase64(null);
       } else {
-        Alert.alert("Error", "El biométrico rechazó la operación.");
+        Alert.alert("Error Biométrico", result.error || "Operación rechazada");
       }
     } catch (error) {
-      Alert.alert("Error de Red", "No se pudo contactar al servidor.");
+      Alert.alert("Error de Conexión", "No se pudo comunicar con el dispositivo.");
     } finally {
       setLoading(false);
     }
@@ -109,13 +102,28 @@ export default function RegisterUserScreen({ route, navigation }) {
 
         <View style={styles.form}>
             <Text style={styles.label}>ID de Empleado</Text>
-            <TextInput style={styles.input} keyboardType="numeric" value={userId} onChangeText={setUserId} />
+            <TextInput 
+              style={styles.input} 
+              keyboardType="numeric" 
+              value={userId} 
+              onChangeText={setUserId} 
+              placeholder="Ej: 5050"
+            />
 
             <Text style={styles.label}>Nombre Completo</Text>
-            <TextInput style={styles.input} value={userName} onChangeText={setUserName} />
+            <TextInput 
+              style={styles.input} 
+              value={userName} 
+              onChangeText={setUserName} 
+              placeholder="Ej: Juan Pérez"
+            />
 
             <TouchableOpacity style={styles.submitBtn} onPress={handleRegister} disabled={loading}>
-                {loading ? <ActivityIndicator color="white" /> : <Text style={styles.submitText}>REGISTRAR USUARIO</Text>}
+                {loading ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text style={styles.submitText}>REGISTRAR USUARIO</Text>
+                )}
             </TouchableOpacity>
         </View>
 

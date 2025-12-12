@@ -1,12 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity, 
-  StatusBar, Modal 
+  StatusBar, Alert 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import LottieView from 'lottie-react-native';
-
-const BACKEND_URL = 'http://192.168.100.52:3000/api/biometric/test';
+import ConnectionModal from '../components/ConnectionModal';
+import { checkConnection } from '../services/dahua/deviceService';
 
 const DEVICES = [
   { id: '1', brand: 'Dahua', model: '3CODE', serial: 'wja6234400022' }
@@ -20,91 +19,45 @@ export default function HomeScreen({ navigation }) {
   const [rememberIp, setRememberIp] = useState(false);
   const [searchText, setSearchText] = useState('');
 
-  // --- ESTADOS PARA ANIMACIÓN ---
   const [modalVisible, setModalVisible] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState('idle'); // 'idle' | 'connecting' | 'success' | 'error'
-  
-  // Referencia para controlar el Lottie
-  const animationRef = useRef(null);
+  const [connectionStatus, setConnectionStatus] = useState('idle');
 
-  // Efecto para manejar los cambios de animación
-  useEffect(() => {
-    if (modalVisible && animationRef.current) {
-        animationRef.current.play();
-    }
-  }, [modalVisible, connectionStatus]);
-
-  // --- LÓGICA DE CONEXIÓN CON ANIMACIONES ---
   const handleConnect = async () => {
     if (!deviceIp || !devicePass) {
-      // Usamos alert normal solo para validación local rápida
-      alert("Campos Requeridos: Ingresa IP y Contraseña.");
+      Alert.alert("Campos Requeridos", "Ingresa IP y Contraseña.");
       return;
     }
 
-    // 1. Mostrar Modal y Animación de "Probando..."
     setConnectionStatus('connecting');
     setModalVisible(true);
 
     try {
-      const response = await fetch(BACKEND_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-            deviceIp: deviceIp,
-            devicePass: devicePass
-        })
-      });
+      const result = await checkConnection(deviceIp, devicePass);
 
-      if (response.ok) {
-        // 2. Éxito: Cambiar animación a "Aprobada"
+      if (result.success) {
         setConnectionStatus('success');
-        
-        // Esperar 2 segundos para que el usuario disfrute la animación de éxito antes de cambiar de pantalla
         setTimeout(() => {
             setModalVisible(false);
             navigation.navigate('RegisterUser', { 
                 targetIp: deviceIp,
                 targetPass: devicePass
             });
-        }, 2500); 
-
+        }, 2000); 
       } else {
-        // 3. Error del Biométrico: Cambiar animación a "Denegada"
+        console.log("Error Conexión:", result.error);
         handleError();
       }
     } catch (error) {
-      // 4. Error de Red: Cambiar animación a "Denegada"
+      console.log("Error Catch:", error);
       handleError();
     }
   };
 
   const handleError = () => {
     setConnectionStatus('error');
-    // Esperar 2.5 segundos viendo el error y luego cerrar
     setTimeout(() => {
         setModalVisible(false);
     }, 2500);
-  };
-
-  // Función auxiliar para elegir el archivo JSON correcto
-  const getAnimationSource = () => {
-    switch (connectionStatus) {
-        case 'connecting': return require('../../assets/animations/loading.json'); // Tu archivo "Probando"
-        case 'success':    return require('../../assets/animations/success.json'); // Tu archivo "Aprobada"
-        case 'error':      return require('../../assets/animations/error.json');   // Tu archivo "Denegada"
-        default:           return null;
-    }
-  };
-
-  // Texto auxiliar debajo de la animación
-  const getStatusText = () => {
-      switch (connectionStatus) {
-          case 'connecting': return "Estableciendo conexión segura...";
-          case 'success':    return "¡Conexión Exitosa!";
-          case 'error':      return "Conexión Denegada";
-          default: return "";
-      }
   };
 
   const renderItem = ({ item }) => {
@@ -135,7 +88,7 @@ export default function HomeScreen({ navigation }) {
               <View style={styles.inputWrapper}>
                 <TextInput 
                   style={styles.textInput}
-                  placeholder="IP: 10.10.100.220"
+                  placeholder="IP: 192.168.1.108"
                   placeholderTextColor="#9CA3AF"
                   keyboardType="numeric"
                   value={deviceIp}
@@ -192,34 +145,7 @@ export default function HomeScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F9FAFB" />
-
-      {/* --- MODAL DE ANIMACIONES --- */}
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => {}} // Evita cierre accidental en Android
-      >
-        <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-                <LottieView
-                    ref={animationRef}
-                    source={getAnimationSource()}
-                    autoPlay
-                    loop={connectionStatus === 'connecting'} // Solo loopear si está cargando
-                    style={styles.lottie}
-                    resizeMode="contain"
-                />
-                <Text style={[
-                    styles.modalText, 
-                    connectionStatus === 'error' && styles.errorText,
-                    connectionStatus === 'success' && styles.successText
-                ]}>
-                    {getStatusText()}
-                </Text>
-            </View>
-        </View>
-      </Modal>
+      <ConnectionModal visible={modalVisible} status={connectionStatus} />
 
       <View style={styles.body}>
         <Text style={styles.sectionTitle}>Dispositivos biométricos</Text>
@@ -250,45 +176,8 @@ export default function HomeScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
-  
-  // Estilos del Modal Lottie
-  modalOverlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.6)', // Fondo semitransparente oscuro
-      justifyContent: 'center',
-      alignItems: 'center',
-  },
-  modalContent: {
-      width: 300,
-      padding: 25,
-      backgroundColor: 'white',
-      borderRadius: 20,
-      alignItems: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.25,
-      shadowRadius: 10,
-      elevation: 10,
-  },
-  lottie: {
-      width: 180,
-      height: 180,
-      marginBottom: 10,
-  },
-  modalText: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: '#4B5563',
-      textAlign: 'center',
-      marginTop: 10
-  },
-  successText: { color: '#059669' }, // Verde bonito
-  errorText: { color: '#DC2626' },   // Rojo alerta
-
-  // Estilos Generales
   body: { flex: 1, paddingHorizontal: 20 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#111827', marginTop: 20, marginBottom: 15, textAlign: 'center' },
-  
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
