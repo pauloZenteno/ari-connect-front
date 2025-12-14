@@ -1,27 +1,24 @@
 // src/components/MainHeader.js
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Platform, StatusBar } from 'react-native';
-import { Ionicons } from '@expo/vector-icons'; // Iconos incluidos en Expo
-import LogoSvg from '../assets/logo_ariconnect.svg'; // Reusamos tu logo
+import { Ionicons } from '@expo/vector-icons'; 
+// 👇 CORRECCIÓN: Agregamos "/images/" a la ruta
+import LogoSvg from '../assets/images/logo_ariconnect.svg'; 
 
 export default function MainHeader({ navigation }) {
   return (
     <View style={styles.headerContainer}>
-      {/* Ajuste para la barra de estado (Notch) */}
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.contentContainer}>
           
-          {/* Lado Izquierdo: Logo y Nombre */}
           <View style={styles.logoContainer}>
-            {/* Escalamos el logo pequeño */}
             <LogoSvg width={30} height={30} fill="white" /> 
             <Text style={styles.titleText}>Ari Connect</Text>
           </View>
 
-          {/* Lado Derecho: Botón Cerrar Sesión */}
           <TouchableOpacity 
             style={styles.logoutButton} 
-            onPress={() => navigation.navigate('Login')} // Simulamos logout
+            onPress={() => navigation.navigate('Login')} 
           >
             <Text style={styles.logoutText}>Cerrar sesión</Text>
             <Ionicons name="exit-outline" size={18} color="white" style={{ marginLeft: 5 }} />
@@ -35,11 +32,10 @@ export default function MainHeader({ navigation }) {
 
 const styles = StyleSheet.create({
   headerContainer: {
-    backgroundColor: '#3B82F6', // Un azul similar al de tu captura
+    backgroundColor: '#3B82F6', 
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-    borderBottomLeftRadius: 0, // Recto como en la imagen
+    borderBottomLeftRadius: 0, 
     borderBottomRightRadius: 0,
-    // Sombra suave
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -70,7 +66,7 @@ const styles = StyleSheet.create({
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.2)', // Fondo semitransparente
+    backgroundColor: 'rgba(255,255,255,0.2)', 
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 20,

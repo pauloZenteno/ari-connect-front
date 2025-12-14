@@ -11,8 +11,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import Checkbox from 'expo-checkbox';
 
-import LogoSvg from '../assets/logo_ariconnect.svg';
-import BgSvg from '../assets/bg_loginariconnect.svg';
+import LogoSvg from '../assets/images/logo_ariconnect.svg';
+import BgSvg from '../assets/images/bg_loginariconnect.svg';
 
 const { width, height } = Dimensions.get('window');
 
@@ -70,9 +70,9 @@ export default function LoginScreen({ navigation }) {
             </View>
 
             <TouchableOpacity 
-            style={styles.buttonContainer} 
-            activeOpacity={0.8}
-            onPress={() => navigation.replace('Home')}
+              style={styles.buttonContainer} 
+              activeOpacity={0.8}
+              onPress={() => navigation.replace('Home')}
             >
               <LinearGradient
                 colors={['#4FD1C5', '#38B2AC', '#319795']}
@@ -118,7 +118,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
     justifyContent: 'center',
   },
-  // --- Header ---
   headerContainer: {
     alignItems: 'center',
     marginBottom: 50,
@@ -129,7 +128,6 @@ const styles = StyleSheet.create({
     color: 'white',
     marginTop: 20,
   },
-  // --- Formulario ---
   formContainer: {
     marginBottom: 30,
   },
@@ -142,7 +140,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     color: '#333',
   },
-  // --- Opciones ---
   optionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -162,7 +159,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
   },
-  // --- Botón ---
   buttonContainer: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -181,7 +177,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     letterSpacing: 1,
   },
-  // --- Footer ---
   footerContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
