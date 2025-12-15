@@ -1,88 +1,80 @@
+import ReactNativeBlobUtil from 'react-native-blob-util';
 import md5 from 'js-md5';
 
-// ... (tu función parseDigestHeader sigue igual) ...
-function parseDigestHeader(header) {
-  // ... (mismo código de antes)
-  const challenge = {};
-  const re = /([a-z0-9_-]+)=(?:"([^"]+)"|([a-z0-9_-]+))/gi;
-  let match;
-  while ((match = re.exec(header))) {
-    challenge[match[1]] = match[2] || match[3];
-  }
-  return challenge;
-}
+// Headers que imitan a Safari
+const COMPATIBILITY_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  'Connection': 'close' 
+};
 
 export async function digestFetch(url, options = {}) {
-  const { username, password, method = 'GET', body = null } = options;
+  const method = options.method || 'GET';
+  const body = options.body ? JSON.stringify(options.body) : null;
 
-  console.log(`🚀 [Intento 1] Conectando a: ${url} (Timeout 5s)`);
+  // 👇 FORZAMOS HTTPS (Safari lo hace a veces automáticamente)
+  // Si la url viene como http://192..., la cambiamos a https://192...
+  const secureUrl = url.replace('http://', 'https://');
 
-  // 👇 AGREGAMOS TIMEOUT DE 5 SEGUNDOS
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 5000);
+  console.log(`🚀 [NativeBlob] Conectando a: ${secureUrl}`);
 
   try {
-    const firstResponse = await fetch(url, {
-      method,
-      headers: options.headers,
-      body: body ? JSON.stringify(body) : null,
-      signal: controller.signal, // 👈 Vinculamos el timeout
-    });
-    clearTimeout(timeoutId); // Si responde, cancelamos el timeout
+    // 1. PRIMER INTENTO
+    const firstRes = await ReactNativeBlobUtil
+      .config({
+        trusty: true, // Ignora certificados SSL inválidos (Vital para HTTPS local)
+        timeout: 20000 
+      })
+      .fetch(method, secureUrl, { ...COMPATIBILITY_HEADERS, ...options.headers }, body);
 
-    console.log(`📡 [Respuesta 1] Status: ${firstResponse.status}`);
+    const status = firstRes.info().status;
+    console.log(`📡 Status: ${status}`);
 
-    if (firstResponse.status !== 401) {
-      return firstResponse; 
+    if (status === 200) return parseResponse(firstRes.data);
+
+    // 2. LOGICA DIGEST (Si responde 401)
+    if (status === 401) {
+      console.log("🔐 Autenticando...");
+      const headers = firstRes.info().headers;
+      const authHeader = headers['www-authenticate'] || headers['Www-Authenticate'];
+
+      // ... (El resto de tu lógica de cálculo MD5 se mantiene igual) ...
+      // Asegúrate de copiar tu bloque de cálculo MD5 aquí
+      // ...
+      
+      // SOLO PARA QUE PUEDAS COPIAR RÁPIDO EL CALCULO SI LO NECESITAS:
+      const params = {};
+      authHeader.replace(/(\w+)=["']?([^'"\s,]+)["']?/g, (m, key, value) => params[key] = value);
+      const username = 'admin'; 
+      const password = 'admin123'; // ⚠️ REVISA TU CONTRASEÑA
+      const ha1 = md5(`${username}:${params.realm}:${password}`);
+      const ha2 = md5(`${method}:${secureUrl.replace(/^https?:\/\/[^\/]+/, '')}`);
+      const nc = '00000001';
+      const cnonce = md5(Date.now().toString()).substring(0, 16);
+      let responseStr = md5(`${ha1}:${params.nonce}:${nc}:${cnonce}:${params.qop}:${ha2}`);
+      const authResponseHeader = `Digest username="${username}", realm="${params.realm}", nonce="${params.nonce}", uri="${secureUrl.replace(/^https?:\/\/[^\/]+/, '')}", qop=${params.qop}, nc=${nc}, cnonce="${cnonce}", response="${responseStr}", opaque="${params.opaque}"`;
+
+      // 3. SEGUNDO INTENTO CON AUTH
+      const secondRes = await ReactNativeBlobUtil
+        .config({ trusty: true, timeout: 20000 })
+        .fetch(method, secureUrl, { 
+          ...COMPATIBILITY_HEADERS, 
+          ...options.headers, 
+          'Authorization': authResponseHeader 
+        }, body);
+        
+      console.log(`✅ Final: ${secondRes.info().status}`);
+      return parseResponse(secondRes.data);
     }
-
-    // --- Lógica de Digest (Igual que antes) ---
-    const authHeader = firstResponse.headers.get('www-authenticate');
-    if (!authHeader) return firstResponse;
-
-    const challenge = parseDigestHeader(authHeader);
-    const realm = challenge.realm;
-    const nonce = challenge.nonce;
-    const qop = challenge.qop;
-    const cnonce = Math.random().toString(36).substring(7);
-    const nc = '00000001';
-    const uri = url.replace(/^https?:\/\/[^\/]+/, '');
-
-    const ha1 = md5(`${username}:${realm}:${password}`);
-    const ha2 = md5(`${method}:${uri}`);
-    const responseParams = [ha1, nonce, nc, cnonce, qop, ha2].join(':');
-    const responseAuth = md5(responseParams);
-
-    const authString = `Digest username="${username}", realm="${realm}", nonce="${nonce}", uri="${uri}", qop=${qop}, nc=${nc}, cnonce="${cnonce}", response="${responseAuth}"`;
-
-    console.log(`🔐 [Intento 2] Enviando credenciales...`);
-
-    // Segundo fetch también con timeout
-    const controller2 = new AbortController();
-    const timeoutId2 = setTimeout(() => controller2.abort(), 5000);
-
-    const secondResponse = await fetch(url, {
-      method,
-      headers: {
-        ...options.headers,
-        'Authorization': authString,
-        'Content-Type': 'application/json'
-      },
-      body: body ? JSON.stringify(body) : null,
-      signal: controller2.signal,
-    });
-    clearTimeout(timeoutId2);
-
-    console.log(`✅ [Respuesta 2] Status Final: ${secondResponse.status}`);
-    return secondResponse;
+    
+    throw new Error(`Status desconocido: ${status}`);
 
   } catch (error) {
-    // 👇 ESTO ES LO QUE QUEREMOS VER
-    if (error.name === 'AbortError') {
-      console.error("⏰ ERROR: Tiempo de espera agotado. El celular no ve la IP.");
-    } else {
-      console.error("🔥 ERROR RED:", error.message);
-    }
+    console.error("🔥 Error:", error);
     throw error;
   }
+}
+
+function parseResponse(data) {
+  try { return JSON.parse(data); } catch (e) { return data; }
 }

@@ -6,22 +6,26 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-  "supportsTablet": true,
-  "bundleIdentifier": "com.paulo.ariconnect", 
-  "infoPlist": {
-    "NSLocalNetworkUsageDescription": "Ari Connect necesita buscar y conectarse al biométrico en tu red local.",
-    "NSAppTransportSecurity": {
-      "NSAllowsArbitraryLoads": true
-    }
-  }
-},
+      "supportsTablet": true,
+      "bundleIdentifier": "com.paulo.ariconnect",
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "Ari Connect necesita conectarse al biométrico Dahua para configurarlo.",
+        "NSBonjourServices": [
+          "_http._tcp",
+          "_api._tcp"
+        ],
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      }
+    },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
